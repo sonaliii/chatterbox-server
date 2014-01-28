@@ -17,12 +17,22 @@ chatLog.push({
   username: 'Arya Stark'
 });
 
+var addMessage = function(message) {
+  var timeStamp = new Date();
+  message.objectId = timeStamp.getTime();
+  message.createdAt = timeStamp.toJSON();
+  message.updatedAt = timeStamp.toJSON();
+  chatLog.push(message);
+};
+
+
 /* You should implement your request handler function in this file.
  * And hey! This is already getting passed to http.createServer()
  * in basic-server.js. But it won't work as is.
  * You'll have to figure out a way to export this function from
  * this file and include it in basic-server.js so that it actually works.
  * *Hint* Check out the node module documentation at http://nodejs.org/api/modules.html. */
+var fs = require("fs");
 var url = require("url");
 exports.handleRequest = function(request, response) {
   /* the 'request' argument comes from nodes http module. It includes info about the
@@ -37,32 +47,42 @@ exports.handleRequest = function(request, response) {
   var headers = defaultCorsHeaders;
 
   if (request.url !== '/1/classes/chatterbox') {
-    statusCode = 418;
-    headers['Content-Type'] = "text/plain";
-    response.writeHead(statusCode, headers);
-    response.end("I'm a teapot!");
+    var file = request.url;
+    if(file === '/') {
+      file = '/index.html';
+    }
+    fs.readFile("./client" + file, function(error, data) {
+      if(error) {
+        headers['Content-Type'] = "text/plain";
+        statusCode = 404;
+        response.writeHead("Sorry the page was not found!");
+      } else {
+        console.log("Serving: " + file);
+        headers['Content-Type'] = "text/html";
+        response.end(data);
+      }
+    });
+  } else {
+      if (request.method === 'GET') {
+        headers['Content-Type'] = "application/json";
+        response.writeHead(statusCode, headers);
+        response.end(JSON.stringify(chatLog));
+      }
+
+      if (request.method === 'POST') {
+        headers['Content-Type'] = "application/json";
+        response.writeHead(statusCode, headers);
+        request.on('data', function(data){
+          addMessage(JSON.parse(data));
+          response.end(JSON.stringify(chatLog[chatLog.length - 1]));
+        });
+      }
   }
 
   if(request.method === 'OPTIONS') {
     headers['Content-Type'] = "text/plain";
     response.writeHead(statusCode, headers);
     response.end();
-  }
-
-  if (request.method === 'GET') {
-    headers['Content-Type'] = "application/json";
-    response.writeHead(statusCode, headers);
-    response.end(JSON.stringify(chatLog));
-  }
-
-  if (request.method === 'POST') {
-    headers['Content-Type'] = "application/json";
-    response.writeHead(statusCode, headers);
-    request.on('data', function(data){
-      chatLog.push(JSON.parse(data));
-      console.log(chatLog);
-      response.end(JSON.stringify(chatLog[chatLog.length - 1]));
-    });
   }
 
   /* Without this line, this server wouldn't work. See the note
